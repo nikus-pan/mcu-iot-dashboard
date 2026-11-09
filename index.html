@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="SparkSense Node — Raspberry Pi Pico W 物聯網感測節點。DHT22 溫濕度即時監測、Wi-Fi 上傳、網頁 Dashboard。硬體與軟體整合作品。" />
+  <meta name="keywords" content="Raspberry Pi Pico W,MicroPython,DHT22,IoT,物聯網,感測器,Dashboard,嵌入式" />
+  <meta name="theme-color" content="#0a0e14" />
+
+  <meta property="og:type" content="website" />
+  <meta property="og:title" content="SparkSense Node｜Pico W 物聯網感測節點" />
+  <meta property="og:description" content="Raspberry Pi Pico W + DHT22 的即時溫濕度監測系統，含網頁 Dashboard 與 MicroPython 韌體。" />
+
+  <title>SparkSense Node｜Pico W 物聯網感測節點</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&family=Noto+Sans+TC:wght@300;400;500;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/style.css" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='82'>🛰️</text></svg>" />
+</head>
+<body>
+  <div class="grid-bg" aria-hidden="true"></div>
+  <div class="scanline" aria-hidden="true"></div>
+
+  <!-- ===== Header ===== -->
+  <header class="site-header" id="siteHeader">
+    <div class="wrap nav-wrap">
+      <a href="#top" class="logo" aria-label="SparkSense 首頁">
+        <span class="logo-mark" aria-hidden="true">
+          <svg viewBox="0 0 32 32" width="22" height="22"><path d="M16 3 L28 9 v14 L16 29 L4 23 V9 Z" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="16" cy="16" r="3.4" fill="currentColor"/><path d="M16 8.5v4M16 19.5v4M9.5 12.2l3.4 2M19.1 17.8l3.4 2M9.5 19.8l3.4-2M19.1 14.2l3.4-2" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+        </span>
+        <span class="logo-text">SparkSense<small>PICO W · IOT NODE</small></span>
+      </a>
+
+      <nav class="main-nav" id="mainNav" aria-label="主選單">
+        <ul>
+          <li><a href="#dashboard">即時監測</a></li>
+          <li><a href="#hardware">硬體</a></li>
+          <li><a href="#architecture">系統架構</a></li>
+          <li><a href="#firmware">韌體</a></li>
+        </ul>
+      </nav>
+
+      <div class="nav-status">
+        <span class="dot" id="navDot" aria-hidden="true"></span>
+        <span id="navStatusText">連線中</span>
+      </div>
+
+      <button class="nav-toggle" id="navToggle" aria-label="開啟選單" aria-expanded="false">
+        <span></span><span></span><span></span>
+      </button>
+    </div>
+  </header>
+
+  <main id="top">
+
+    <!-- ===== Hero ===== -->
+    <section class="hero">
+      <div class="wrap hero-wrap">
+        <div class="hero-copy">
+          <p class="eyebrow"><span class="pulse"></span> LIVE · MCU SHOWCASE / 2026</p>
+          <h1>把感測器接上網路，<br />讓<span class="grad">環境數據</span>自己開口。</h1>
+          <p class="lead">
+            SparkSense Node 是一套以 Raspberry Pi Pico W 為核心的物聯網感測節點：
+            DHT22 讀取溫濕度，經 Wi-Fi 以 JSON POST 上傳，並在網頁 Dashboard 即時視覺化。
+            從 MicroPython 韌體、GPIO 接線到前端資料呈現，硬體與軟體的一條龍實作。
+          </p>
+          <div class="hero-actions">
+            <a href="#dashboard" class="btn btn-primary">
+              <span>看即時 Dashboard</span>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+            </a>
+            <a href="#firmware" class="btn btn-ghost">閱讀韌體原始碼</a>
+          </div>
+          <ul class="hero-specs">
+            <li><b>RP2040</b><span>雙核 133MHz</span></li>
+            <li><b>2.4GHz</b><span>802.11n Wi-Fi</span></li>
+            <li><b>DHT22</b><span>±0.5°C / ±2%RH</span></li>
+            <li><b>30s</b><span>取樣週期</span></li>
+          </ul>
+        </div>
+
+        <div class="hero-device" aria-hidden="true">
+          <div class="device-card">
+            <div class="device-top">
+              <span class="device-name">PICO W · GP15</span>
+              <span class="chip-led" id="heroLed"></span>
+            </div>
+            <div class="device-readout">
+              <div><span class="ro-label">TEMP</span><span class="ro-value" id="heroTemp">--.-</span><span class="ro-unit">°C</span></div>
+              <div><span class="ro-label">HUMID</span><span class="ro-value" id="heroHum">--.-</span><span class="ro-unit">%</span></div>
+            </div>
+            <div class="device-bars" id="heroBars" aria-hidden="true"></div>
+            <div class="device-foot">
+              <span>UPTIME <b id="heroUptime">00:00:00</b></span>
+              <span>RSSI <b id="heroRssi">--</b> dBm</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== Dashboard ===== -->
+    <section id="dashboard" class="section">
+      <div class="wrap">
+        <div class="section-head">
+          <p class="section-kicker">01 / TELEMETRY</p>
+          <h2>即時監測 Dashboard</h2>
+          <p class="section-sub">
+            頁面內建 <b>Pico W 模擬器</b>（純 JavaScript）重現裝置的取樣、Wi-Fi 連線與 JSON 上傳行為，
+            讓 Dashboard 在沒有實體硬體時也能完整示範。接上實體裝置後，只要把讀值來源換成真實 API 即可。
+          </p>
+        </div>
+
+        <!-- 控制列 -->
+        <div class="control-bar" role="group" aria-label="模擬控制">
+          <div class="control">
+            <label for="scenario">感測情境</label>
+            <select id="scenario">
+              <option value="indoor">室內環境 (22–26°C)</option>
+              <option value="outdoor">戶外環境 (28–34°C)</option>
+              <option value="coldchain">冷鏈運輸 (2–8°C)</option>
+              <option value="greenhouse">溫室栽培 (26–32°C 高濕)</option>
+            </select>
+          </div>
+          <div class="control">
+            <label for="interval">取樣間隔 <b id="intervalVal">2.0s</b></label>
+            <input type="range" id="interval" min="0.5" max="6" step="0.5" value="2" />
+          </div>
+          <div class="control control-actions">
+            <button class="btn btn-sm" id="btnPower" data-state="on">
+              <span class="dot" id="powerDot"></span><span id="powerText">裝置運作中</span>
+            </button>
+            <button class="btn btn-sm btn-ghost" id="btnClear">清除歷史</button>
+          </div>
+        </div>
+
+        <!-- KPI -->
+        <div class="kpi-grid">
+          <div class="kpi kpi-temp">
+            <div class="kpi-head"><span>溫度</span><span class="kpi-tag">DHT22</span></div>
+            <div class="kpi-value"><b id="kpiTemp">--.-</b><i>°C</i></div>
+            <div class="kpi-foot" id="kpiTempFoot">等待資料…</div>
+          </div>
+          <div class="kpi kpi-hum">
+            <div class="kpi-head"><span>相對濕度</span><span class="kpi-tag">DHT22</span></div>
+            <div class="kpi-value"><b id="kpiHum">--.-</b><i>%</i></div>
+            <div class="kpi-foot" id="kpiHumFoot">等待資料…</div>
+          </div>
+          <div class="kpi kpi-hi">
+            <div class="kpi-head"><span>體感溫度</span><span class="kpi-tag">Rothfusz</span></div>
+            <div class="kpi-value"><b id="kpiHI">--.-</b><i>°C</i></div>
+            <div class="kpi-foot" id="kpiHIFoot">由溫度與濕度推算</div>
+          </div>
+          <div class="kpi kpi-dev">
+            <div class="kpi-head"><span>裝置狀態</span><span class="kpi-tag" id="kpiDevTag">ONLINE</span></div>
+            <div class="kpi-status">
+              <div class="stat-row"><span>Wi-Fi 訊號</span><b id="statRssi">-- dBm</b></div>
+              <div class="signal" id="statSignal" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+              <div class="stat-row"><span>運行時間</span><b id="statUptime">00:00:00</b></div>
+              <div class="stat-row"><span>封包 / 失敗</span><b id="statPackets">0 / 0</b></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 圖表 -->
+        <div class="chart-grid">
+          <article class="card chart-card">
+            <div class="card-head">
+              <div>
+                <h3>溫度變化趨勢</h3>
+                <p class="card-note" id="tempNote">最近 5 分鐘的溫度讀值（°C）</p>
+              </div>
+              <div class="spark-stat"><b id="tempDelta">—</b><span>近 1 分鐘</span></div>
+            </div>
+            <div class="canvas-box"><canvas id="tempChart" role="img" aria-label="溫度歷史折線圖"></canvas></div>
+          </article>
+
+          <article class="card chart-card">
+            <div class="card-head">
+              <div>
+                <h3>濕度變化趨勢</h3>
+                <p class="card-note" id="humNote">最近 5 分鐘的相對濕度讀值（%）</p>
+              </div>
+              <div class="spark-stat"><b id="humDelta">—</b><span>近 1 分鐘</span></div>
+            </div>
+            <div class="canvas-box"><canvas id="humChart" role="img" aria-label="濕度歷史折線圖"></canvas></div>
+          </article>
+        </div>
+
+        <!-- 事件流 + 上傳 payload -->
+        <div class="chart-grid">
+          <article class="card log-card">
+            <div class="card-head">
+              <div><h3>裝置事件流</h3><p class="card-note">裝置與網路層的即時事件</p></div>
+              <span class="live-badge"><span class="dot"></span>LIVE</span>
+            </div>
+            <ul class="event-log" id="eventLog" aria-live="polite"></ul>
+          </article>
+
+          <article class="card payload-card">
+            <div class="card-head">
+              <div><h3>HTTP 上傳內容</h3><p class="card-note">POST /api/readings · application/json</p></div>
+            </div>
+            <pre class="code-payload" id="payloadView" aria-live="polite">{ }</pre>
+            <div class="payload-meta">
+              <span>端點 <b>192.168.1.100:8000</b></span>
+              <span>狀態 <b id="payloadStatus" class="ok">201 Created</b></span>
+            </div>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== Hardware ===== -->
+    <section id="hardware" class="section section-alt">
+      <div class="wrap">
+        <div class="section-head">
+          <p class="section-kicker">02 / HARDWARE</p>
+          <h2>硬體清單與接線</h2>
+          <p class="section-sub">全部零件皆為市售常見模組，接線僅需 3 條線加一顆上拉電阻。</p>
+        </div>
+
+        <div class="hardware-grid">
+          <div class="bom">
+            <table>
+              <thead><tr><th>#</th><th>零件</th><th>規格</th><th>數量</th></tr></thead>
+              <tbody>
+                <tr><td>1</td><td>Raspberry Pi Pico W</td><td>RP2040 + CYW43439 Wi-Fi</td><td>1</td></tr>
+                <tr><td>2</td><td>DHT22 溫濕度感測器</td><td>AM2302 · 3.3–5V · 單線</td><td>1</td></tr>
+                <tr><td>3</td><td>上拉電阻</td><td>4.7kΩ–10kΩ · 1/4W</td><td>1</td></tr>
+                <tr><td>4</td><td>麵包板 + 杜邦線</td><td>400 孔 · 母對公</td><td>1</td></tr>
+                <tr><td>5</td><td>Micro-USB 電源</td><td>5V / 1A（或鋰電 + 穩壓）</td><td>1</td></tr>
+              </tbody>
+            </table>
+            <p class="bom-note">成本約 NT$350–500，可用行動電源供電，適合部署於任何角落。</p>
+          </div>
+
+          <div class="wiring">
+            <svg viewBox="0 0 460 300" role="img" aria-label="Pico W 與 DHT22 接線示意圖" class="wiring-svg">
+              <!-- Pico board -->
+              <rect x="30" y="60" width="150" height="180" rx="10" class="board"/>
+              <rect x="30" y="60" width="150" height="26" rx="10" class="board-head"/>
+              <text x="105" y="78" class="svg-title">Raspberry Pi Pico W</text>
+              <!-- pins right side -->
+              <g class="pins">
+                <rect x="176" y="104" width="14" height="9" rx="2"/><text x="200" y="112" class="pin-label">3V3(OUT) · 36</text>
+                <rect x="176" y="146" width="14" height="9" rx="2"/><text x="200" y="154" class="pin-label">GP15 · 20</text>
+                <rect x="176" y="188" width="14" height="9" rx="2"/><text x="200" y="196" class="pin-label">GND · 38</text>
+              </g>
+              <!-- DHT22 -->
+              <rect x="330" y="90" width="100" height="120" rx="8" class="dht"/>
+              <g class="dht-grille">
+                <line x1="345" y1="108" x2="415" y2="108"/><line x1="345" y1="118" x2="415" y2="118"/>
+                <line x1="345" y1="128" x2="415" y2="128"/><line x1="345" y1="138" x2="415" y2="138"/>
+                <line x1="345" y1="148" x2="415" y2="148"/>
+              </g>
+              <text x="380" y="180" class="svg-title center">DHT22 / AM2302</text>
+              <text x="380" y="198" class="pin-label center">溫濕度感測器</text>
+              <!-- wires -->
+              <path d="M190 108 C 260 92, 280 96, 330 100" class="wire vcc" />
+              <path d="M190 150 C 260 150, 285 130, 330 132" class="wire data" />
+              <path d="M190 192 C 260 200, 280 176, 330 176" class="wire gnd" />
+              <!-- resistor -->
+              <path d="M240 150 l6 0 l4 -8 l8 16 l8 -16 l8 16 l4 -8 l6 0" class="resistor"/>
+              <text x="246" y="240" class="pin-label">4.7kΩ 上拉（GP15 → 3V3）</text>
+              <!-- legend -->
+              <g class="legend">
+                <line x1="60" y1="272" x2="84" y2="272" class="wire vcc"/><text x="90" y="276" class="pin-label">3.3V</text>
+                <line x1="150" y1="272" x2="174" y2="272" class="wire data"/><text x="180" y="276" class="pin-label">資料 (GP15)</text>
+                <line x1="290" y1="272" x2="314" y2="272" class="wire gnd"/><text x="320" y="276" class="pin-label">GND</text>
+              </g>
+            </svg>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== Architecture ===== -->
+    <section id="architecture" class="section">
+      <div class="wrap">
+        <div class="section-head">
+          <p class="section-kicker">03 / ARCHITECTURE</p>
+          <h2>系統架構</h2>
+          <p class="section-sub">從感測層到呈現層的完整資料路徑，每一段都可替換或水平擴充。</p>
+        </div>
+
+        <ol class="arch-flow">
+          <li class="arch-node">
+            <span class="arch-idx">A</span>
+            <h4>感測層</h4>
+            <p>DHT22 以單線協定回傳溫濕度，GP15 讀取，含除錯與超時重試。</p>
+            <span class="arch-tag">DHT22 · GPIO</span>
+          </li>
+          <li class="arch-node">
+            <span class="arch-idx">B</span>
+            <h4>邊緣運算</h4>
+            <p>Pico W 於 MicroPython 計算體感溫度、維持 Wi-Fi 連線與看門狗。</p>
+            <span class="arch-tag">MicroPython · WDT</span>
+          </li>
+          <li class="arch-node">
+            <span class="arch-idx">C</span>
+            <h4>傳輸層</h4>
+            <p>原生 socket 發送 HTTP/1.1 POST，JSON 內含裝置 Token 與讀值。</p>
+            <span class="arch-tag">HTTP · JSON · TLS</span>
+          </li>
+          <li class="arch-node">
+            <span class="arch-idx">D</span>
+            <h4>收集層</h4>
+            <p>FastAPI 端點驗證 Token、寫入時序資料庫，提供查詢 API。</p>
+            <span class="arch-tag">FastAPI · SQLite</span>
+          </li>
+          <li class="arch-node">
+            <span class="arch-idx">E</span>
+            <h4>呈現層</h4>
+            <p>響應式網頁 Dashboard，即時 KPI、趨勢圖與裝置健康狀態。</p>
+            <span class="arch-tag">HTML · CSS · Canvas</span>
+          </li>
+        </ol>
+      </div>
+    </section>
+
+    <!-- ===== Firmware ===== -->
+    <section id="firmware" class="section section-alt">
+      <div class="wrap">
+        <div class="section-head">
+          <p class="section-kicker">04 / FIRMWARE</p>
+          <h2>MicroPython 韌體</h2>
+          <p class="section-sub">完整原始碼位於 <code>firmware/main.py</code>；以下為核心邏輯節錄。</p>
+        </div>
+
+        <div class="code-window">
+          <div class="code-bar">
+            <span class="code-file">firmware/main.py</span>
+            <div class="code-tabs" role="tablist">
+              <button class="code-tab active" data-target="code-connect" role="tab" aria-selected="true">Wi-Fi</button>
+              <button class="code-tab" data-target="code-read" role="tab" aria-selected="false">讀值</button>
+              <button class="code-tab" data-target="code-post" role="tab" aria-selected="false">上傳</button>
+              <button class="code-tab" data-target="code-loop" role="tab" aria-selected="false">主迴圈</button>
+            </div>
+          </div>
+          <pre class="code-body active" id="code-connect"><code>def connect_wifi():
+    wlan = network.WLAN(network.STA_IF)
+    wlan.active(True)
+    if wlan.isconnected():
+        return wlan
+    wlan.connect(WIFI_SSID, WIFI_PASSWORD)
+    start = time.time()
+    while not wlan.isconnected():
+        if time.time() - start &gt; WIFI_TIMEOUT:
+            return None            # 逾時，交由外層重試
+        led.toggle()
+        time.sleep(0.25)
+    return wlan</code></pre>
+          <pre class="code-body" id="code-read"><code>sensor = dht.DHT22(Pin(SENSOR_PIN))   # GP15
+
+def read_sensor():
+    try:
+        sensor.measure()              # 單線協定約 2s
+        return sensor.temperature(), sensor.humidity()
+    except OSError as e:
+        print("[sensor] 讀取失敗:", e)
+        return None, None</code></pre>
+          <pre class="code-body" id="code-post"><code>payload = json.dumps({
+    "device_id": DEVICE_ID,
+    "temperature": t_c,
+    "humidity": rh,
+    "heat_index": heat_index(t_c, rh),
+    "rssi": rssi,
+    "ts": time.time(),
+})
+s.write(headers.encode()); s.write(payload.encode())
+status = s.readline().decode()         # "HTTP/1.1 201 Created"</code></pre>
+          <pre class="code-body" id="code-loop"><code>while True:
+    wdt.feed()                              # 餵看門狗
+    if not wlan or not wlan.isconnected():
+        wlan = connect_wifi()               # 斷線自動重連
+    t_c, rh = read_sensor()
+    if t_c is not None:
+        post_reading(t_c, rh, wlan.status("rssi"))
+    gc.collect()                            # 長時間運作更穩定
+    time.sleep(SAMPLE_INTERVAL)</code></pre>
+        </div>
+
+        <div class="deploy-steps">
+          <h3>部署步驟</h3>
+          <ol>
+            <li><b>刷入韌體</b>：按住 BOOTSEL 插上 USB，將 MicroPython UF2 拖入隨身碟。</li>
+            <li><b>上傳程式</b>：把 <code>main.py</code>、<code>secrets.py</code> 複製到 Pico W 隨身碟。</li>
+            <li><b>接線</b>：依上圖接上 DHT22 與上拉電阻。</li>
+            <li><b>啟動收集端</b>：<code>uvicorn collector:app --host 0.0.0.0 --port 8000</code>。</li>
+            <li><b>開 Dashboard</b>：瀏覽器開啟 <code>index.html</code> 即時監看。</li>
+          </ol>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap footer-wrap">
+      <div class="footer-brand">
+        <span class="logo-text">SparkSense<small>靈機工作室 · SPARK STUDIO</small></span>
+        <p>硬體 × 軟體整合作品集 · Raspberry Pi Pico W 物聯網感測節點</p>
+      </div>
+      <div class="footer-meta">
+        <span>RP2040 · MicroPython · DHT22</span>
+        <span>© 2026 Spark Studio</span>
+      </div>
+    </div>
+  </footer>
+
+  <script src="js/chart.js"></script>
+  <script src="js/simulator.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
